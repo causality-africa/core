@@ -4,7 +4,6 @@ import (
 	"core/internal/models"
 	"database/sql"
 	"errors"
-	"log"
 )
 
 type LocationRepository struct {
@@ -29,7 +28,6 @@ func (r *LocationRepository) GetLocations(isoCode string) ([]models.Location, er
 	}
 
 	if err != nil {
-		log.Println("Error fetching locations", err)
 		return nil, err
 	}
 
@@ -41,7 +39,6 @@ func (r *LocationRepository) GetLocations(isoCode string) ([]models.Location, er
 		var loc models.Location
 
 		if err := rows.Scan(&loc.Id, &loc.Name, &loc.AdminLevel, &loc.ParentId, &loc.IsoCode, &loc.Map); err != nil {
-			log.Println("Error scanning location:", err)
 			return nil, err
 		}
 
@@ -64,7 +61,6 @@ func (r *LocationRepository) GetLocationByISO(isoCode string) (*models.Location,
 			return nil, errors.New("location not found")
 		}
 
-		log.Println("Error fetching location by ISO:", err)
 		return nil, err
 	}
 

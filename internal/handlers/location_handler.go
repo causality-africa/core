@@ -2,8 +2,6 @@ package handler
 
 import (
 	repository "core/internal/repositories"
-	"core/internal/utils"
-	"log"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -22,7 +20,7 @@ func (h *LocationHandler) GetLocationsHandler(c echo.Context) error {
 
 	locations, err := h.repo.GetLocations(isoCode)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch locations"})
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Locations not found"})
 	}
 
 	return c.JSON(http.StatusOK, locations)
@@ -35,11 +33,10 @@ func (h *LocationHandler) GetLocationByISOHandler(c echo.Context) error {
 
 	if err != nil {
 		if err.Error() == "location not found" {
-			return utils.ErrorResponse(c, http.StatusNotFound, "Location not found.")
+			return c.JSON(http.StatusNotFound, map[string]string{"error": "Location not found"})
 		}
 
-		log.Println("Error fetching location:", err)
-		return utils.ErrorResponse(c, http.StatusInternalServerError, "Internal server error.")
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
 	}
 
 	return c.JSON(http.StatusOK, location)
