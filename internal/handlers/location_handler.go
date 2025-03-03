@@ -3,6 +3,7 @@ package handler
 import (
 	repository "core/internal/repositories"
 	"net/http"
+	"strconv"
 
 	"github.com/labstack/echo/v4"
 )
@@ -16,9 +17,21 @@ func NewLocationHandler(repo *repository.LocationRepository) *LocationHandler {
 }
 
 func (h *LocationHandler) GetLocationsHandler(c echo.Context) error {
-	isoCode := c.QueryParam("iso")
+	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+	page, _ := strconv.Atoi(c.QueryParam("page"))
 
-	locations, err := h.repo.GetLocations(isoCode)
+	if limit <= 0 {
+		limit = 10
+	}
+
+	if page < 1 {
+		page = 1
+	}
+
+	offset := (page - 1) * limit
+
+	locations, err := h.repo.GetLocations(limit, offset)
+
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Locations not found"})
 	}
@@ -27,9 +40,9 @@ func (h *LocationHandler) GetLocationsHandler(c echo.Context) error {
 }
 
 func (h *LocationHandler) GetLocationByISOHandler(c echo.Context) error {
-	isoCode := c.Param("iso")
+	code := c.Param("code")
 
-	location, err := h.repo.GetLocationByISO(isoCode)
+	location, err := h.repo.GetLocationByISO(code)
 
 	if err != nil {
 		if err.Error() == "location not found" {

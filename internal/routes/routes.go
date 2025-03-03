@@ -7,6 +7,6 @@ import (
 )
 
 func RegisterRoutes(e *echo.Echo, locationHandler *handler.LocationHandler) {
-	e.GET("/locations", locationHandler.GetLocationsHandler)
-	e.GET("/locations/{iso}", locationHandler.GetLocationByISOHandler)
+	e.GET("/v1/api/locations", locationHandler.GetLocationsHandler)
+	e.GET("/v1/api/locations/:code", locationHandler.GetLocationByISOHandler)
 }

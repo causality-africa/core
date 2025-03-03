@@ -14,18 +14,14 @@ func NewLocationRepository(db *sql.DB) *LocationRepository {
 	return &LocationRepository{DB: db}
 }
 
-func (r *LocationRepository) GetLocations(isoCode string) ([]models.Location, error) {
+func (r *LocationRepository) GetLocations(limit int, offset int) ([]models.Location, error) {
 	query := "SELECT * FROM locations"
+	args := []interface{}{}
 
-	var rows *sql.Rows
-	var err error
+	query += " ORDER BY id LIMIT $1 OFFSET $2"
+	args = append(args, limit, offset)
 
-	if isoCode != "" {
-		query += ` WHERE iso_code = $1`
-		rows, err = r.DB.Query(query, isoCode)
-	} else {
-		rows, err = r.DB.Query(query)
-	}
+	rows, err := r.DB.Query(query, args...)
 
 	if err != nil {
 		return nil, err
@@ -38,7 +34,7 @@ func (r *LocationRepository) GetLocations(isoCode string) ([]models.Location, er
 	for rows.Next() {
 		var loc models.Location
 
-		if err := rows.Scan(&loc.Id, &loc.Name, &loc.AdminLevel, &loc.ParentId, &loc.IsoCode, &loc.Map); err != nil {
+		if err := rows.Scan(&loc.Id, &loc.Name, &loc.AdminLevel, &loc.ParentId, &loc.Code, &loc.Map); err != nil {
 			return nil, err
 		}
 
@@ -48,13 +44,13 @@ func (r *LocationRepository) GetLocations(isoCode string) ([]models.Location, er
 	return locations, nil
 }
 
-func (r *LocationRepository) GetLocationByISO(isoCode string) (*models.Location, error) {
-	query := "SELECT * FROM locations WHERE iso_code = $1 LIMIT 1"
-	row := r.DB.QueryRow(query, isoCode)
+func (r *LocationRepository) GetLocationByISO(code string) (*models.Location, error) {
+	query := "SELECT * FROM locations WHERE code = $1 LIMIT 1"
+	row := r.DB.QueryRow(query, code)
 
 	var loc models.Location
 
-	err := row.Scan(&loc.Id, &loc.Name, &loc.AdminLevel, &loc.ParentId, &loc.IsoCode, &loc.Map)
+	err := row.Scan(&loc.Id, &loc.Name, &loc.AdminLevel, &loc.ParentId, &loc.Code, &loc.Map)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
