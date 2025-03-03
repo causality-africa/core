@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"database/sql"
+	"time"
+)
 
 type DataPoint struct {
 	Id          int       `json:"id"`
@@ -35,12 +38,12 @@ type LocationRegion struct {
 }
 
 type Location struct {
-	Id         int    `json:"id"`
-	Name       string `json:"name"`
-	AdminLevel int    `json:"admin_level"`
-	ParentId   int    `json:"parent_id"`
-	IsoCode    string `json:"iso_code"`
-	Map        string `json:"map"`
+	Id         int           `json:"id"`
+	Name       string        `json:"name"`
+	AdminLevel int           `json:"admin_level"`
+	ParentId   sql.NullInt32 `json:"parent_id"`
+	Code       string        `json:"code"`
+	Map        string        `json:"map"`
 }
 
 type Region struct {

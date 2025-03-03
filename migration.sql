@@ -155,7 +155,7 @@ CREATE TABLE public.locations (
     name character varying(255) NOT NULL,
     admin_level integer NOT NULL,
     parent_id integer,
-    iso_code character varying(10),
+    code character varying(10),
     map text,
     CONSTRAINT locations_admin_level_check CHECK ((admin_level >= 0))
 );
@@ -291,7 +291,7 @@ ALTER TABLE ONLY public.location_regions
 --
 
 ALTER TABLE ONLY public.locations
-    ADD CONSTRAINT locations_iso_code_key UNIQUE (iso_code);
+    ADD CONSTRAINT locations_iso_code_key UNIQUE (code);
 
 
 --
