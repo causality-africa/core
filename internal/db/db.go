@@ -12,7 +12,7 @@ import (
 
 var db *sql.DB
 
-func InitDB() {
+func InitDB() error {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
@@ -24,18 +24,17 @@ func InitDB() {
 	dbPass := os.Getenv("DB_PASSWORD")
 	dbName := os.Getenv("DB_NAME")
 
-	db, err := sql.Open("postgres", fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable", dbHost, dbUser, dbPass, dbName, dbPort))
+	db, err = sql.Open("postgres", fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable", dbHost, dbUser, dbPass, dbName, dbPort))
 
 	if err != nil {
-		panic(err.Error())
+		return fmt.Errorf("failed to open database connection: %w", err)
 	}
 
 	err = db.Ping()
 	if err != nil {
-		panic(err.Error())
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
-
-	fmt.Println("Successfully connected to database")
+	return nil
 }
 
 func GetDB() *sql.DB {
