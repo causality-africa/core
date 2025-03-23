@@ -1,0 +1,4 @@
+CREATE DATABASE causality;
+CREATE USER causality WITH ENCRYPTED PASSWORD 'replace-me';
+GRANT ALL PRIVILEGES ON DATABASE causality TO causality;
+GRANT ALL PRIVILEGES ON SCHEMA public TO causality;

@@ -1,5 +1,9 @@
 # Builder
-FROM golang:1.23-alpine AS builder
+FROM golang:1.24-alpine AS builder
+
+ARG VERSION=dev
+ARG BUILD_DATE
+ARG COMMIT_REF
 
 LABEL\
 	maintainer="Causality <mail@causality.africa" \
@@ -15,6 +19,7 @@ LABEL\
 	org.opencontainers.image.vendor="Causality" \
 	org.opencontainers.image.version=$VERSION
 
+ENV CGO_ENABLED=1
 
 WORKDIR /app
 
@@ -34,5 +39,7 @@ RUN go install github.com/jackc/tern/v2@latest
 FROM alpine:latest
 
 COPY --from=builder /app/core /core
+
+EXPOSE 8080
 
 CMD ["/core"]
