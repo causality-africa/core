@@ -3,6 +3,7 @@ package api
 import (
 	"core/internal/models"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -42,6 +43,7 @@ func (api *API) query(c echo.Context) error {
 	ctx := c.Request().Context()
 	locations, err := api.db.GetLocations(ctx, afterLocation, limit)
 	if err != nil {
+		slog.Error("Error getting locations", "error", err)
 		return err
 	}
 
@@ -52,6 +54,7 @@ func (api *API) query(c echo.Context) error {
 
 	dataPoints, err := api.db.GetDataPointsForLocations(ctx, indicator, locationIds, startDateParsed, endDateParsed)
 	if err != nil {
+		slog.Error("Error getting data points for locations", "error", err)
 		return err
 	}
 
