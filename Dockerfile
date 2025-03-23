@@ -42,6 +42,7 @@ FROM alpine:latest
 
 COPY --from=builder /app/core /core
 COPY --from=builder /go/bin/tern /tern
+COPY --from=builder /app/tern.conf /tern.conf
 
 EXPOSE 8080
 
