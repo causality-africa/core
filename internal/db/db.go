@@ -1,42 +1,29 @@
 package db
 
 import (
-	"database/sql"
+	"context"
+	"core/internal/config"
 	"fmt"
-	"log"
-	"os"
 
-	"github.com/joho/godotenv"
+	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
 )
 
-var db *sql.DB
-
-func InitDB() error {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
-	dbUser := os.Getenv("DB_USER")
-	dbPass := os.Getenv("DB_PASSWORD")
-	dbName := os.Getenv("DB_NAME")
-
-	db, err = sql.Open("postgres", fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable", dbHost, dbUser, dbPass, dbName, dbPort))
-
-	if err != nil {
-		return fmt.Errorf("failed to open database connection: %w", err)
-	}
-
-	err = db.Ping()
-	if err != nil {
-		return fmt.Errorf("failed to connect to database: %w", err)
-	}
-	return nil
+type DB struct {
+	pool *pgxpool.Pool
 }
 
-func GetDB() *sql.DB {
-	return db
+func New(cfg *config.DB) (*DB, error) {
+	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s", cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name)
+	pool, err := pgxpool.New(context.Background(), connString)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create db pool: %w", err)
+	}
+
+	return &DB{pool: pool}, nil
+}
+
+func (s *DB) Close() error {
+	s.pool.Close()
+	return nil
 }
