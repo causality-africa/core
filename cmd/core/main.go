@@ -1,36 +1,33 @@
 package main
 
 import (
+	"core/internal/api"
+	"core/internal/config"
 	"core/internal/db"
-	handler "core/internal/handlers"
-	repository "core/internal/repositories"
-	"core/internal/routes"
+	"log"
 
-	"github.com/labstack/echo/v4"
 	_ "github.com/lib/pq"
 )
 
+var (
+	Version = "dev"
+)
+
 func main() {
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Failed to load config: %v\n", err)
+	}
 
-	// initialize the db connection
-	db.InitDB()
+	db, err := db.New(&cfg.DB)
+	if err != nil {
+		log.Fatalf("Failed to connect to DB: %v\n", err)
+	}
+	defer db.Close()
 
-	// get the database instance
-	database := db.GetDB()
-	defer database.Close()
-
-	// initialize the repositories
-	locationRepo := repository.NewLocationRepository(database)
-	indicatorRepo := repository.NewIndicatorRepository(database)
-
-	//initialize handlers
-	locationHandler := handler.NewLocationHandler(locationRepo)
-	indicatorHandler := handler.NewIndicatorHandler(indicatorRepo)
-
-	// create an echo instance
-	e := echo.New()
-
-	// register routes
-	routes.RegisterRoutes(e, locationHandler, indicatorHandler)
-	e.Logger.Fatal(e.Start(":8080"))
+	server := api.New(db)
+	err = server.Start(&cfg.API)
+	if err != nil {
+		log.Fatalf("Failed to start server: %v\n", err)
+	}
 }

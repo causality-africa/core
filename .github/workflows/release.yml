@@ -54,16 +54,3 @@ jobs:
           subject-name: ghcr.io/causality-africa/core
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
-
-      - name: Install Python
-        uses: actions/setup-python@v3
-        with:
-          python-version: "3.12"
-
-      - name: Install docs dependencies
-        run: pip install -r requirements.txt
-
-      - name: Deploy the documentation
-        run: mkdocs gh-deploy --force --clean --verbose
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
