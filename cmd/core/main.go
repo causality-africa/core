@@ -21,14 +21,16 @@ func main() {
 
 	// initialize the repositories
 	locationRepo := repository.NewLocationRepository(database)
+	indicatorRepo := repository.NewIndicatorRepository(database)
 
 	//initialize handlers
 	locationHandler := handler.NewLocationHandler(locationRepo)
+	indicatorHandler := handler.NewIndicatorHandler(indicatorRepo)
 
 	// create an echo instance
 	e := echo.New()
 
 	// register routes
-	routes.RegisterRoutes(e, locationHandler)
+	routes.RegisterRoutes(e, locationHandler, indicatorHandler)
 	e.Logger.Fatal(e.Start(":8080"))
 }
