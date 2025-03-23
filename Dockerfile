@@ -41,6 +41,7 @@ RUN go install github.com/jackc/tern/v2@latest
 FROM alpine:latest
 
 COPY --from=builder /app/core /core
+COPY --from=builder /go/bin/tern /tern
 
 EXPOSE 8080
 
