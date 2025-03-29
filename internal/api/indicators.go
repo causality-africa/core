@@ -62,8 +62,6 @@ func (api *API) query(c echo.Context) error {
 	for _, loc := range locations {
 		if len(dataPoints[loc.Id]) > 0 {
 			results[loc.Code] = dataPoints[loc.Id]
-		} else {
-			delete(results, loc.Code)
 		}
 	}
 

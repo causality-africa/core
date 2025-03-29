@@ -13,6 +13,7 @@ func (db *DB) GetLocations(ctx context.Context, afterCode string, limit int) ([]
         SELECT id, name, code, admin_level, parent_id, map
         FROM locations
         WHERE code > $1
+		ORDER BY name
         LIMIT $2
     `, afterCode, limit)
 	if err != nil {
