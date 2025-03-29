@@ -1,3 +1,3 @@
 # Core
 
-Causality's data service layer.
+Data service layer.
