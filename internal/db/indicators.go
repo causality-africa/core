@@ -8,8 +8,6 @@ import (
 	"fmt"
 )
 
-var ErrNotFound = errors.New("row not found")
-
 func (db *DB) GetIndicators(
 	ctx context.Context,
 	limit, offset int,

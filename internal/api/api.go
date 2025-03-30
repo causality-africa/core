@@ -57,9 +57,14 @@ func New(
 	e.GET("/v1/indicators", api.GetIndicators)
 	e.GET("/v1/indicators/:code", api.GetIndicatorByCode)
 
+	e.GET("/v1/sources", api.GetSources)
+	e.GET("/v1/sources/:id", api.GetSourceById)
+
 	e.GET("/v1/query", api.query)
 
 	// Middleware
+	e.Pre(middleware.RemoveTrailingSlash())
+
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
@@ -67,10 +72,7 @@ func New(
 		Skipper: middleware.DefaultSkipper,
 		Store:   middlewarex.NewRateLimiterCacheStore(rateLimit, rateLimitDuration, cache),
 		IdentifierExtractor: func(c echo.Context) (string, error) {
-			id := c.RealIP()
-			fmt.Println(id)
-			fmt.Println(c.Request().Header)
-			return id, nil
+			return c.RealIP(), nil
 		},
 		ErrorHandler: func(c echo.Context, err error) error {
 			return c.JSON(http.StatusInternalServerError, nil)
