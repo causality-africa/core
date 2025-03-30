@@ -36,6 +36,7 @@ func New(
 ) *API {
 	if err := sentry.Init(sentry.ClientOptions{
 		Dsn:              observabilityCfg.SentryDSN,
+		EnableTracing:    true,
 		TracesSampleRate: 1.0,
 		SendDefaultPII:   false,
 	}); err != nil {
@@ -72,9 +73,12 @@ func New(
 	}
 	e.Use(middleware.RateLimiterWithConfig(rateLimiterCfg))
 
-	e.Use(middlewarex.CacheMiddleware(cache, cacheTTL))
+	e.Use(sentryecho.New(sentryecho.Options{
+		Repanic:         true,
+		WaitForDelivery: false,
+	}))
 
-	e.Use(sentryecho.New(sentryecho.Options{}))
+	e.Use(middlewarex.CacheMiddleware(cache, cacheTTL))
 
 	return api
 }
