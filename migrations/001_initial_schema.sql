@@ -1,7 +1,7 @@
 CREATE TABLE locations (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    code VARCHAR(10) NOT NULL UNIQUE,                  -- ISO-3166 alpha2
+    code VARCHAR(10) NOT NULL UNIQUE,                  -- ISO-3166 codes
     admin_level INT NOT NULL CHECK (admin_level >= 0), -- 0 = Country, 1 = Province/State/etc
     parent_id INT,
     map TEXT,

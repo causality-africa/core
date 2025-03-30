@@ -71,7 +71,10 @@ func (api *API) query(c echo.Context) error {
 	locations, err := api.db.GetLocationsByCodes(ctx, q.Locations)
 	if err != nil {
 		slog.Error("Error getting locations by codes", "error", err)
-		return c.JSON(http.StatusInternalServerError, "Error querying database")
+		return c.JSON(
+			http.StatusInternalServerError,
+			map[string]string{"error": "error querying database"},
+		)
 	}
 
 	locationIds := make([]int, len(locations))
@@ -84,7 +87,10 @@ func (api *API) query(c echo.Context) error {
 	)
 	if err != nil {
 		slog.Error("Error getting data points for locations", "error", err)
-		return c.JSON(http.StatusInternalServerError, "Error querying database")
+		return c.JSON(
+			http.StatusInternalServerError,
+			map[string]string{"error": "error querying database"},
+		)
 	}
 
 	result := make(map[string][]models.DataPoint)

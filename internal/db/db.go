@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/lib/pq"
 )
 
 type DB struct {
