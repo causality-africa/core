@@ -2,49 +2,76 @@ package api
 
 import (
 	"core/internal/models"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strconv"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
 )
 
-type QueryResponse struct {
-	Data map[string][]models.DataPoint `json:"data"`
-	Next string                        `json:"next,omitempty"` // URL for next page
+var (
+	maxQueryLocations = 50
+)
+
+type Query struct {
+	Indicator string
+	StartDate time.Time
+	EndDate   time.Time
+	Locations []string
 }
 
-func (api *API) query(c echo.Context) error {
-	indicator := c.QueryParam("indicator")
-	if len(indicator) == 0 {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "indicator must be provided"})
+type QueryResponse struct {
+	Data map[string][]models.DataPoint `json:"data"`
+}
+
+func validateQuery(c echo.Context) (*Query, error) {
+	var q Query
+	var err error
+
+	q.Indicator = c.QueryParam("indicator")
+	if len(q.Indicator) == 0 {
+		return nil, errors.New("indicator must be provided")
 	}
 
 	startDate := c.QueryParam("start")
-	startDateParsed, err := time.Parse("2006-01-02", startDate)
+	q.StartDate, err = time.Parse("2006-01-02", startDate)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid start date format"})
+		return nil, errors.New("invalid start date format")
 	}
 
 	endDate := c.QueryParam("end")
-	endDateParsed, err := time.Parse("2006-01-02", endDate)
+	q.EndDate, err = time.Parse("2006-01-02", endDate)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid end date format"})
+		return nil, errors.New("invalid end date format")
 	}
 
-	afterLocation := c.QueryParam("after")
-	limit, _ := strconv.Atoi(c.QueryParam("limit"))
-	if limit < 1 || limit > 50 {
-		limit = 10
+	locations := c.QueryParam("locations")
+	if len(locations) == 0 {
+		return nil, errors.New("locations must be provided")
+	}
+
+	q.Locations = strings.Split(locations, ",")
+	if len(q.Locations) > maxQueryLocations {
+		return nil, fmt.Errorf("maximum of %d locations allowed", maxQueryLocations)
+	}
+
+	return &q, nil
+}
+
+func (api *API) query(c echo.Context) error {
+	q, err := validateQuery(c)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
 	ctx := c.Request().Context()
-	locations, err := api.db.GetLocations(ctx, afterLocation, limit)
+	locations, err := api.db.GetLocationsByCodes(ctx, q.Locations)
 	if err != nil {
-		slog.Error("Error getting locations", "error", err)
-		return err
+		slog.Error("Error getting locations by codes", "error", err)
+		return c.JSON(http.StatusInternalServerError, "Error querying database")
 	}
 
 	locationIds := make([]int, len(locations))
@@ -52,27 +79,20 @@ func (api *API) query(c echo.Context) error {
 		locationIds[i] = location.Id
 	}
 
-	dataPoints, err := api.db.GetDataPointsForLocations(ctx, indicator, locationIds, startDateParsed, endDateParsed)
+	dataPoints, err := api.db.GetDataPointsForLocations(
+		ctx, q.Indicator, locationIds, q.StartDate, q.EndDate,
+	)
 	if err != nil {
 		slog.Error("Error getting data points for locations", "error", err)
-		return err
+		return c.JSON(http.StatusInternalServerError, "Error querying database")
 	}
 
-	results := make(map[string][]models.DataPoint)
+	result := make(map[string][]models.DataPoint)
 	for _, loc := range locations {
 		if len(dataPoints[loc.Id]) > 0 {
-			results[loc.Code] = dataPoints[loc.Id]
+			result[loc.Code] = dataPoints[loc.Id]
 		}
 	}
 
-	var nextPageURL string
-	if len(locations) > 0 {
-		lastLocation := locations[len(locations)-1].Code
-		nextPageURL = fmt.Sprintf(
-			"/v1/query?indicator=%s&start=%s&end=%s&after=%s&limit=%d",
-			indicator, startDate, endDate, lastLocation, limit,
-		)
-	}
-
-	return c.JSON(http.StatusOK, QueryResponse{Data: results, Next: nextPageURL})
+	return c.JSON(http.StatusOK, QueryResponse{Data: result})
 }
