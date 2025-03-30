@@ -3,74 +3,68 @@ package db
 import (
 	"context"
 	"core/internal/models"
+	"database/sql"
+	"errors"
 	"fmt"
-	"strings"
-	"time"
 )
 
-func (db *DB) GetDataPointsForLocations(
+var ErrNotFound = errors.New("row not found")
+
+func (db *DB) GetIndicators(
 	ctx context.Context,
-	indicator string,
-	locationIds []int,
-	startDate, endDate time.Time,
-) (map[int][]models.DataPoint, error) {
-	results := map[int][]models.DataPoint{}
-	if len(locationIds) == 0 {
-		return results, nil
-	}
-
-	locationParams := make([]string, len(locationIds))
-	args := make([]any, len(locationIds)+3) // +3 for indicator code, start and end dates
-
-	args[0] = indicator
-	args[1] = startDate
-	args[2] = endDate
-
-	for i, id := range locationIds {
-		locationParams[i] = fmt.Sprintf("$%d", i+4) // +4 because indicator, dates are $1, $2, $3
-		args[i+3] = id
-
-		results[id] = []models.DataPoint{}
-	}
-
-	query := fmt.Sprintf(`
-        SELECT dp.id, entity_type, entity_id, indicator_id, source_id, date, numeric_value, text_value
-        FROM data_points dp
-		JOIN indicators i ON dp.indicator_id = i.id
-        WHERE i.code = $1
-        AND dp.entity_type = 'location'
-        AND dp.entity_id IN (%s)
-        AND dp.date >= $2 AND dp.date <= $3
-    `, strings.Join(locationParams, ","))
-
-	rows, err := db.pool.Query(ctx, query, args...)
+	limit, offset int,
+) ([]models.Indicator, error) {
+	query := "SELECT * FROM indicators ORDER BY name LIMIT $1 OFFSET $2"
+	rows, err := db.pool.Query(ctx, query, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("cannot query data points: %w", err)
+		return nil, fmt.Errorf("cannot query indicators: %w", err)
 	}
 	defer rows.Close()
 
+	indicators := []models.Indicator{}
 	for rows.Next() {
-		var dp models.DataPoint
-
+		var ind models.Indicator
 		if err := rows.Scan(
-			&dp.Id,
-			&dp.EntityType,
-			&dp.EntityID,
-			&dp.IndicatorId,
-			&dp.SourceId,
-			&dp.Date,
-			&dp.NumericValue,
-			&dp.TextValue,
+			&ind.Id,
+			&ind.Name,
+			&ind.Code,
+			&ind.Category,
+			&ind.Unit,
+			&ind.Description,
+			&ind.DataType,
 		); err != nil {
 			return nil, fmt.Errorf("cannot scan row: %w", err)
 		}
 
-		results[dp.EntityID] = append(results[dp.EntityID], dp)
+		indicators = append(indicators, ind)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("cannot read rows: %w", err)
+	return indicators, nil
+}
+
+func (db *DB) GetIndicatorByCode(
+	ctx context.Context, code string,
+) (*models.Indicator, error) {
+	query := "SELECT * FROM indicators WHERE code = $1 LIMIT 1"
+	row := db.pool.QueryRow(ctx, query, code)
+
+	var ind models.Indicator
+	err := row.Scan(
+		&ind.Id,
+		&ind.Name,
+		&ind.Code,
+		&ind.Category,
+		&ind.Unit,
+		&ind.Description,
+		&ind.DataType,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+
+		return nil, fmt.Errorf("cannot scan row: %w", err)
 	}
 
-	return results, nil
+	return &ind, nil
 }

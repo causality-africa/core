@@ -47,6 +47,12 @@ func New(
 	api := &API{echo: e, db: database, cache: cache}
 
 	// Routes
+	e.GET("/v1/locations", api.GetLocations)
+	e.GET("/v1/locations/:code", api.GetLocationByCode)
+
+	e.GET("/v1/indicators", api.GetIndicators)
+	e.GET("/v1/indicators/:code", api.GetIndicatorByCode)
+
 	e.GET("/v1/query", api.query)
 
 	// Middleware
@@ -58,6 +64,7 @@ func New(
 		Store:   middlewarex.NewRateLimiterCacheStore(rateLimit, rateLimitDuration, cache),
 		IdentifierExtractor: func(ctx echo.Context) (string, error) {
 			id := ctx.RealIP()
+			fmt.Println(id)
 			return id, nil
 		},
 		ErrorHandler: func(context echo.Context, err error) error {

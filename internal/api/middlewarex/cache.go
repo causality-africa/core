@@ -58,13 +58,17 @@ func CacheMiddleware(cache *cache.Cache, ttl time.Duration) echo.MiddlewareFunc 
 				return err
 			}
 
-			// Store response in cache
-			responseData := map[string]any{
-				"status":  c.Response().Status,
-				"headers": captureHeaders(c.Response().Header()),
-				"body":    resWriter.Buffer.String(),
+			status := c.Response().Status
+			if status >= 200 && status < 300 {
+				// Store response in cache
+				responseData := map[string]any{
+					"status":  status,
+					"headers": captureHeaders(c.Response().Header()),
+					"body":    resWriter.Buffer.String(),
+				}
+				cache.Set(c.Request().Context(), key, responseData, ttl)
 			}
-			cache.Set(c.Request().Context(), key, responseData, ttl)
+
 			return nil
 		}
 	}
