@@ -24,15 +24,17 @@ var (
 )
 
 type API struct {
-	echo  *echo.Echo
-	db    *db.DB
-	cache *cache.Cache
+	echo    *echo.Echo
+	db      *db.DB
+	cache   *cache.Cache
+	version string
 }
 
 func New(
 	database *db.DB,
 	cache *cache.Cache,
 	observabilityCfg *config.Observability,
+	version string,
 ) *API {
 	if err := sentry.Init(sentry.ClientOptions{
 		Dsn:              observabilityCfg.SentryDSN,
@@ -44,9 +46,11 @@ func New(
 	}
 
 	e := echo.New()
-	api := &API{echo: e, db: database, cache: cache}
+	api := &API{echo: e, db: database, cache: cache, version: version}
 
 	// Routes
+	e.GET("/", api.home)
+
 	e.GET("/v1/locations", api.GetLocations)
 	e.GET("/v1/locations/:code", api.GetLocationByCode)
 
@@ -62,17 +66,18 @@ func New(
 	rateLimiterCfg := middleware.RateLimiterConfig{
 		Skipper: middleware.DefaultSkipper,
 		Store:   middlewarex.NewRateLimiterCacheStore(rateLimit, rateLimitDuration, cache),
-		IdentifierExtractor: func(ctx echo.Context) (string, error) {
-			id := ctx.RealIP()
+		IdentifierExtractor: func(c echo.Context) (string, error) {
+			id := c.RealIP()
 			fmt.Println(id)
+			fmt.Println(c.Request().Header)
 			return id, nil
 		},
-		ErrorHandler: func(context echo.Context, err error) error {
-			return context.JSON(http.StatusInternalServerError, nil)
+		ErrorHandler: func(c echo.Context, err error) error {
+			return c.JSON(http.StatusInternalServerError, nil)
 		},
-		DenyHandler: func(context echo.Context, identifier string, err error) error {
+		DenyHandler: func(c echo.Context, identifier string, err error) error {
 			errStr := fmt.Sprintf("rate limit exceeded, try again in %s", rateLimitDuration)
-			return context.JSON(
+			return c.JSON(
 				http.StatusTooManyRequests,
 				map[string]string{"error": errStr},
 			)
@@ -93,4 +98,8 @@ func New(
 func (api *API) Start(cfg *config.API) error {
 	addr := fmt.Sprintf(":%d", cfg.Port)
 	return api.echo.Start(addr)
+}
+
+func (api *API) home(c echo.Context) error {
+	return c.String(http.StatusOK, fmt.Sprintf("Causality Core %s", api.version))
 }

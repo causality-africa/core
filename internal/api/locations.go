@@ -30,6 +30,12 @@ func (api *API) GetLocations(c echo.Context) error {
 
 func (api *API) GetLocationByCode(c echo.Context) error {
 	code := c.Param("code")
+	if len(code) == 0 {
+		return c.JSON(
+			http.StatusBadRequest,
+			map[string]string{"error": "code must be provided"},
+		)
+	}
 
 	ctx := c.Request().Context()
 	locations, err := api.db.GetLocationsByCodes(ctx, []string{code})
