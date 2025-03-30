@@ -12,7 +12,11 @@ func (db *DB) GetSources(
 	ctx context.Context,
 	limit, offset int,
 ) ([]models.DataSource, error) {
-	query := "SELECT * FROM data_sources ORDER BY name LIMIT $1 OFFSET $2"
+	query := `
+		SELECT id, name, url, description, date
+		FROM data_sources
+		ORDER BY name LIMIT $1 OFFSET $2
+	`
 	rows, err := db.pool.Query(ctx, query, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("cannot query data sources: %w", err)
@@ -27,6 +31,7 @@ func (db *DB) GetSources(
 			&src.Name,
 			&src.URL,
 			&src.Description,
+			&src.Date,
 		); err != nil {
 			return nil, fmt.Errorf("cannot scan row: %w", err)
 		}
@@ -40,7 +45,11 @@ func (db *DB) GetSources(
 func (db *DB) GetSourceById(
 	ctx context.Context, id int,
 ) (*models.DataSource, error) {
-	query := "SELECT * FROM data_sources WHERE id = $1 LIMIT 1"
+	query := `
+		SELECT id, name, url, description, date
+		FROM data_sources
+		WHERE id = $1 LIMIT 1
+	`
 	row := db.pool.QueryRow(ctx, query, id)
 
 	var src models.DataSource
@@ -49,6 +58,7 @@ func (db *DB) GetSourceById(
 		&src.Name,
 		&src.URL,
 		&src.Description,
+		&src.Date,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
