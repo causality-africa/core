@@ -12,7 +12,11 @@ func (db *DB) GetIndicators(
 	ctx context.Context,
 	limit, offset int,
 ) ([]models.Indicator, error) {
-	query := "SELECT * FROM indicators ORDER BY name LIMIT $1 OFFSET $2"
+	query := `
+		SELECT id, name, code, category, description, unit, data_type
+		FROM indicators
+		ORDER BY name LIMIT $1 OFFSET $2
+	`
 	rows, err := db.pool.Query(ctx, query, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("cannot query indicators: %w", err)
@@ -27,8 +31,8 @@ func (db *DB) GetIndicators(
 			&ind.Name,
 			&ind.Code,
 			&ind.Category,
-			&ind.Unit,
 			&ind.Description,
+			&ind.Unit,
 			&ind.DataType,
 		); err != nil {
 			return nil, fmt.Errorf("cannot scan row: %w", err)
@@ -43,7 +47,11 @@ func (db *DB) GetIndicators(
 func (db *DB) GetIndicatorByCode(
 	ctx context.Context, code string,
 ) (*models.Indicator, error) {
-	query := "SELECT * FROM indicators WHERE code = $1 LIMIT 1"
+	query := `
+		SELECT id, name, code, category, description, unit, data_type
+		FROM indicators
+		WHERE code = $1 LIMIT 1
+	`
 	row := db.pool.QueryRow(ctx, query, code)
 
 	var ind models.Indicator
@@ -52,8 +60,8 @@ func (db *DB) GetIndicatorByCode(
 		&ind.Name,
 		&ind.Code,
 		&ind.Category,
-		&ind.Unit,
 		&ind.Description,
+		&ind.Unit,
 		&ind.DataType,
 	)
 	if err != nil {

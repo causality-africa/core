@@ -10,6 +10,12 @@ run:
 	go run ./cmd/core
 
 
+.PHONY: migrate
+migrate:
+	source .env
+	tern migrate --migrations migrations
+
+
 .PHONY: build
 build:
 	@go build \
