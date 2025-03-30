@@ -79,10 +79,11 @@ type Indicator struct {
 }
 
 type DataSource struct {
-	Id          int     `json:"id"`
-	Name        string  `json:"string"`
-	URL         *string `json:"url,omitempty"`
-	Description *string `json:"description,omitempty"`
+	Id          int        `json:"id"`
+	Name        string     `json:"string"`
+	URL         *string    `json:"url,omitempty"`
+	Description *string    `json:"description,omitempty"`
+	Date        *time.Time `json:"date,omitempty"`
 }
 
 type DataPoint struct {

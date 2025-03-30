@@ -4,20 +4,26 @@ import (
 	"context"
 	"core/internal/models"
 	"fmt"
+	"strings"
 )
 
-func (db *DB) GetLocations(ctx context.Context, afterCode string, limit int) ([]models.Location, error) {
+func (db *DB) GetLocationsByCodes(
+	ctx context.Context,
+	codes []string,
+) ([]models.Location, error) {
 	locations := []models.Location{}
 
-	rows, err := db.pool.Query(ctx, `
+	rows, err := db.pool.Query(
+		ctx,
+		`
         SELECT id, name, code, admin_level, parent_id, map
         FROM locations
-        WHERE code > $1
-		ORDER BY name
-        LIMIT $2
-    `, afterCode, limit)
+        WHERE code = ANY($1)
+        ORDER BY code
+		`,
+		"{"+strings.Join(codes, ",")+"}")
 	if err != nil {
-		return nil, fmt.Errorf("cannot query locations: %w", err)
+		return nil, fmt.Errorf("cannot query locations by codes: %w", err)
 	}
 	defer rows.Close()
 
