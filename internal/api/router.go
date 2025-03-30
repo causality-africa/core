@@ -1,6 +1,7 @@
 package api
 
 import (
+	"core/internal/api/middlewarex"
 	"core/internal/cache"
 	"core/internal/config"
 	"core/internal/db"
@@ -15,6 +16,8 @@ import (
 var (
 	rateLimit         = 100.0
 	rateLimitDuration = 5 * time.Minute
+
+	cacheTTL = 24 * time.Hour
 )
 
 type API struct {
@@ -25,14 +28,14 @@ type API struct {
 
 func New(database *db.DB, cache *cache.Cache) *API {
 	e := echo.New()
-
 	api := &API{echo: e, db: database, cache: cache}
 
 	e.GET("/v1/query", api.query)
 
+	// Rate limiting middleware
 	rateLimiterCfg := middleware.RateLimiterConfig{
 		Skipper: middleware.DefaultSkipper,
-		Store:   NewRateLimiterCacheStore(rateLimit, rateLimitDuration, cache),
+		Store:   middlewarex.NewRateLimiterCacheStore(rateLimit, rateLimitDuration, cache),
 		IdentifierExtractor: func(ctx echo.Context) (string, error) {
 			id := ctx.RealIP()
 			return id, nil
@@ -49,6 +52,9 @@ func New(database *db.DB, cache *cache.Cache) *API {
 		},
 	}
 	e.Use(middleware.RateLimiterWithConfig(rateLimiterCfg))
+
+	// Caching middleware
+	e.Use(middlewarex.CacheMiddleware(cache, cacheTTL))
 
 	return api
 }

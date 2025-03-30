@@ -1,4 +1,4 @@
-package api
+package middlewarex
 
 import (
 	"context"
@@ -39,7 +39,7 @@ type limiterState struct {
 }
 
 func (store *RateLimiterCacheStore) Allow(identifier string) (bool, error) {
-	key := fmt.Sprintf("core:rate-limit:%s", identifier)
+	key := fmt.Sprintf("core:rate-limits:%s", identifier)
 	var state limiterState
 
 	ctx := context.Background()
