@@ -23,10 +23,6 @@ type Query struct {
 	Locations []string
 }
 
-type QueryResponse struct {
-	Data map[string][]models.DataPoint `json:"data"`
-}
-
 func validateQuery(c echo.Context) (*Query, error) {
 	var q Query
 	var err error
@@ -100,5 +96,5 @@ func (api *API) query(c echo.Context) error {
 		}
 	}
 
-	return c.JSON(http.StatusOK, QueryResponse{Data: result})
+	return c.JSON(http.StatusOK, result)
 }
