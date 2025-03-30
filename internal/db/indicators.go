@@ -20,7 +20,7 @@ func (db *DB) GetDataPointsForLocations(
 	}
 
 	locationParams := make([]string, len(locationIds))
-	args := make([]interface{}, len(locationIds)+3) // +3 for indicator code, start and end dates
+	args := make([]any, len(locationIds)+3) // +3 for indicator code, start and end dates
 
 	args[0] = indicator
 	args[1] = startDate

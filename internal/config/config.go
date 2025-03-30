@@ -20,9 +20,15 @@ type DB struct {
 	Password string
 }
 
+type Cache struct {
+	Host string
+	Port int
+}
+
 type Config struct {
 	API
 	DB
+	Cache
 }
 
 func Load() (*Config, error) {

@@ -2,12 +2,11 @@ package main
 
 import (
 	"core/internal/api"
+	"core/internal/cache"
 	"core/internal/config"
 	"core/internal/db"
 	"log/slog"
 	"os"
-
-	_ "github.com/lib/pq"
 )
 
 var (
@@ -18,7 +17,7 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
 
-	slog.Info("Core", "version", Version)
+	slog.Info("Starting Core...", "version", Version)
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -33,7 +32,13 @@ func main() {
 	}
 	defer db.Close()
 
-	server := api.New(db)
+	cache, err := cache.New(&cfg.Cache)
+	if err != nil {
+		slog.Error("Failed to connect to cache", "error", err)
+		return
+	}
+
+	server := api.New(db, cache)
 	err = server.Start(&cfg.API)
 	if err != nil {
 		slog.Error("Failed to start server", "error", err)
