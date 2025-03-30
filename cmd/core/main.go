@@ -38,7 +38,7 @@ func main() {
 		return
 	}
 
-	server := api.New(db, cache)
+	server := api.New(db, cache, &cfg.Observability)
 	err = server.Start(&cfg.API)
 	if err != nil {
 		slog.Error("Failed to start server", "error", err)
