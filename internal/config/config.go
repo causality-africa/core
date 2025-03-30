@@ -25,10 +25,15 @@ type Cache struct {
 	Port int
 }
 
+type Observability struct {
+	SentryDSN string
+}
+
 type Config struct {
 	API
 	DB
 	Cache
+	Observability
 }
 
 func Load() (*Config, error) {

@@ -6,9 +6,12 @@ import (
 	"core/internal/config"
 	"core/internal/db"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
+	"github.com/getsentry/sentry-go"
+	sentryecho "github.com/getsentry/sentry-go/echo"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -26,13 +29,29 @@ type API struct {
 	cache *cache.Cache
 }
 
-func New(database *db.DB, cache *cache.Cache) *API {
+func New(
+	database *db.DB,
+	cache *cache.Cache,
+	observabilityCfg *config.Observability,
+) *API {
+	if err := sentry.Init(sentry.ClientOptions{
+		Dsn:              observabilityCfg.SentryDSN,
+		TracesSampleRate: 1.0,
+		SendDefaultPII:   false,
+	}); err != nil {
+		slog.Error("Failed to initialized Sentry", "error", err)
+	}
+
 	e := echo.New()
 	api := &API{echo: e, db: database, cache: cache}
 
+	// Routes
 	e.GET("/v1/query", api.query)
 
-	// Rate limiting middleware
+	// Middleware
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+
 	rateLimiterCfg := middleware.RateLimiterConfig{
 		Skipper: middleware.DefaultSkipper,
 		Store:   middlewarex.NewRateLimiterCacheStore(rateLimit, rateLimitDuration, cache),
@@ -53,8 +72,9 @@ func New(database *db.DB, cache *cache.Cache) *API {
 	}
 	e.Use(middleware.RateLimiterWithConfig(rateLimiterCfg))
 
-	// Caching middleware
 	e.Use(middlewarex.CacheMiddleware(cache, cacheTTL))
+
+	e.Use(sentryecho.New(sentryecho.Options{}))
 
 	return api
 }
