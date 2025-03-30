@@ -8,10 +8,7 @@ import (
 )
 
 func (api *API) GetLocations(c echo.Context) error {
-	p, err := validatePagination(c)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
-	}
+	p := getPaginationParams(c)
 
 	ctx := c.Request().Context()
 	offset := (p.Page - 1) * p.Size

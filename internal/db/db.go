@@ -3,10 +3,13 @@ package db
 import (
 	"context"
 	"core/internal/config"
+	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+var ErrNotFound = errors.New("row not found")
 
 type DB struct {
 	pool *pgxpool.Pool

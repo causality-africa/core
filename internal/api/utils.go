@@ -16,7 +16,7 @@ type pagination struct {
 	Size int
 }
 
-func validatePagination(c echo.Context) (*pagination, error) {
+func getPaginationParams(c echo.Context) *pagination {
 	var params pagination
 	var err error
 
@@ -30,5 +30,5 @@ func validatePagination(c echo.Context) (*pagination, error) {
 		params.Size = pageSize
 	}
 
-	return &params, nil
+	return &params
 }
