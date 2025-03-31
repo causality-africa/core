@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/getsentry/sentry-go"
 	sentryecho "github.com/getsentry/sentry-go/echo"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -25,32 +24,19 @@ var (
 )
 
 type API struct {
-	echo    *echo.Echo
-	db      *db.DB
-	cache   *cache.Cache
-	version string
+	echo  *echo.Echo
+	db    *db.DB
+	cache *cache.Cache
 }
 
-func New(
-	database *db.DB,
-	cacheStore *cache.Cache,
-	observabilityCfg *config.Observability,
-	version string,
-) *API {
-	if err := sentry.Init(sentry.ClientOptions{
-		Dsn:              observabilityCfg.SentryDSN,
-		EnableTracing:    true,
-		TracesSampleRate: 1.0,
-		SendDefaultPII:   false,
-	}); err != nil {
-		slog.Error("Failed to initialized Sentry", "error", err)
-	}
-
+func New(database *db.DB, cacheStore *cache.Cache, version string) *API {
 	e := echo.New()
-	api := &API{echo: e, db: database, cache: cacheStore, version: version}
+	api := &API{echo: e, db: database, cache: cacheStore}
 
 	// Routes
-	e.GET("/", api.home)
+	e.GET("/", func(c echo.Context) error {
+		return c.String(http.StatusOK, fmt.Sprintf("Causality Core %s", version))
+	})
 
 	e.GET("/v1/locations", api.GetLocations)
 	e.GET("/v1/locations/:code", api.GetLocationByCode)
@@ -66,7 +52,6 @@ func New(
 	// Middleware
 	e.Pre(middleware.RemoveTrailingSlash())
 
-	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
 	rateLimiterCfg := middleware.RateLimiterConfig{
@@ -76,7 +61,7 @@ func New(
 			return c.RealIP(), nil
 		},
 		ErrorHandler: func(c echo.Context, err error) error {
-			slog.Error("cannot identify client", "error", err)
+			slog.Warn("cannot identify client", "error", err)
 			return c.JSON(
 				http.StatusInternalServerError,
 				map[string]string{"error": "cannot identify client"},
@@ -119,8 +104,4 @@ func New(
 func (api *API) Start(cfg *config.API) error {
 	addr := fmt.Sprintf(":%d", cfg.Port)
 	return api.echo.Start(addr)
-}
-
-func (api *API) home(c echo.Context) error {
-	return c.String(http.StatusOK, fmt.Sprintf("Causality Core %s", api.version))
 }
