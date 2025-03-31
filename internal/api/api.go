@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"core/internal/api/middlewarex"
 	"core/internal/cache"
 	"core/internal/config"
@@ -32,7 +33,7 @@ type API struct {
 
 func New(
 	database *db.DB,
-	cache *cache.Cache,
+	cacheStore *cache.Cache,
 	observabilityCfg *config.Observability,
 	version string,
 ) *API {
@@ -46,7 +47,7 @@ func New(
 	}
 
 	e := echo.New()
-	api := &API{echo: e, db: database, cache: cache, version: version}
+	api := &API{echo: e, db: database, cache: cacheStore, version: version}
 
 	// Routes
 	e.GET("/", api.home)
@@ -70,15 +71,33 @@ func New(
 
 	rateLimiterCfg := middleware.RateLimiterConfig{
 		Skipper: middleware.DefaultSkipper,
-		Store:   middlewarex.NewRateLimiterCacheStore(rateLimit, rateLimitDuration, cache),
+		Store:   middlewarex.NewRateLimiterCacheStore(rateLimit, rateLimitDuration, cacheStore),
 		IdentifierExtractor: func(c echo.Context) (string, error) {
 			return c.RealIP(), nil
 		},
 		ErrorHandler: func(c echo.Context, err error) error {
-			return c.JSON(http.StatusInternalServerError, nil)
+			slog.Error("cannot identify client", "error", err)
+			return c.JSON(
+				http.StatusInternalServerError,
+				map[string]string{"error": "cannot identify client"},
+			)
 		},
-		DenyHandler: func(c echo.Context, identifier string, err error) error {
-			errStr := fmt.Sprintf("rate limit exceeded, try again in %s", rateLimitDuration)
+		DenyHandler: func(c echo.Context, identifier string, _ error) error {
+			var retryAfter = rateLimitDuration
+			key := middlewarex.LimiterCacheKey(identifier)
+			ctx := context.Background()
+			state, err := cache.Get[middlewarex.LimiterState](cacheStore, ctx, key)
+			if err == nil {
+				elapsed := time.Since(state.LastRefill)
+				if elapsed < rateLimitDuration {
+					retryAfter = rateLimitDuration - elapsed
+				}
+			}
+
+			retryAfter = retryAfter.Truncate(time.Second)
+			c.Response().Header().Set("Retry-After", fmt.Sprintf("%.0f", retryAfter.Seconds()))
+
+			errStr := fmt.Sprintf("rate limit exceeded, try again in %v", retryAfter)
 			return c.JSON(
 				http.StatusTooManyRequests,
 				map[string]string{"error": errStr},
@@ -92,7 +111,7 @@ func New(
 		WaitForDelivery: false,
 	}))
 
-	e.Use(middlewarex.CacheMiddleware(cache, cacheTTL))
+	e.Use(middlewarex.CacheMiddleware(cacheStore, cacheTTL))
 
 	return api
 }

@@ -29,7 +29,12 @@ func New(cfg *config.Cache) (*Cache, error) {
 	return &Cache{client: client}, nil
 }
 
-func (c *Cache) Set(ctx context.Context, key string, value any, ttl time.Duration) error {
+func (c *Cache) Close() error {
+	c.client.Close()
+	return nil
+}
+
+func Set[T any](c *Cache, ctx context.Context, key string, value T, ttl time.Duration) error {
 	bytes, err := json.Marshal(value)
 	if err != nil {
 		return fmt.Errorf("cannot marshal value: %w", err)
@@ -48,35 +53,32 @@ func (c *Cache) Set(ctx context.Context, key string, value any, ttl time.Duratio
 	return nil
 }
 
-func (c *Cache) Get(ctx context.Context, key string) (any, error) {
+func Get[T any](c *Cache, ctx context.Context, key string) (T, error) {
+	var value T
+
 	cmd := c.client.B().Get().Key(key).Build()
 	resp, err := c.client.Do(ctx, cmd).AsBytes()
 	if err != nil {
 		if valkey.IsValkeyNil(err) {
-			return nil, ErrNotFound
+			return value, ErrNotFound
 		}
 
-		return nil, fmt.Errorf("cannot get key: %w", err)
+		return value, fmt.Errorf("cannot get key: %w", err)
 	}
 
-	var value any
 	if err := json.Unmarshal(resp, &value); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal value: %w", err)
+		return value, fmt.Errorf("cannot unmarshal value: %w", err)
 	}
+
 	return value, nil
 }
 
-func (c *Cache) Delete(ctx context.Context, key string) error {
+func Delete(c *Cache, ctx context.Context, key string) error {
 	cmd := c.client.B().Del().Key(key).Build()
 	err := c.client.Do(ctx, cmd).Error()
 	if err != nil {
 		return fmt.Errorf("cannot delete key: %w", err)
 	}
 
-	return nil
-}
-
-func (c *Cache) Close() error {
-	c.client.Close()
 	return nil
 }
