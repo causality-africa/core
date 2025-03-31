@@ -3,7 +3,8 @@ package middlewarex
 import (
 	"context"
 	"core/internal/cache"
-	"encoding/json"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -33,27 +34,26 @@ func NewRateLimiterCacheStore(
 	}
 }
 
-type limiterState struct {
+type LimiterState struct {
 	Remaining  float64   `json:"remaining"`
 	LastRefill time.Time `json:"last_refill"`
 }
 
+func LimiterCacheKey(identifier string) string {
+	hasher := sha256.New()
+	hasher.Write([]byte(identifier))
+	return fmt.Sprintf("core:rate-limits:%s", hex.EncodeToString(hasher.Sum(nil)))
+}
+
 func (store *RateLimiterCacheStore) Allow(identifier string) (bool, error) {
-	key := fmt.Sprintf("core:rate-limits:%s", identifier)
-	var state limiterState
+	key := LimiterCacheKey(identifier)
 
 	ctx := context.Background()
-	rawState, err := store.cache.Get(ctx, key)
+	state, err := cache.Get[LimiterState](store.cache, ctx, key)
 	if err != nil {
 		if !errors.Is(err, cache.ErrNotFound) {
 			slog.Error("cannot check rate limit", "error", err)
 			return false, fmt.Errorf("cannot check rate limit: %w", err)
-		}
-	} else {
-		stateBytes, _ := json.Marshal(rawState)
-		if err := json.Unmarshal(stateBytes, &state); err != nil {
-			slog.Error("invalid rate limiter state", "error", err)
-			return false, fmt.Errorf("invalid rate limiter state: %w", err)
 		}
 	}
 
@@ -69,7 +69,7 @@ func (store *RateLimiterCacheStore) Allow(identifier string) (bool, error) {
 	state.Remaining -= 1
 	elapsed := time.Since(state.LastRefill)
 
-	err = store.cache.Set(ctx, key, state, store.every-elapsed)
+	err = cache.Set(store.cache, ctx, key, &state, store.every-elapsed)
 	if err != nil {
 		slog.Error("cannot update rate limit", "error", err)
 		return false, fmt.Errorf("cannot update rate limit: %w", err)

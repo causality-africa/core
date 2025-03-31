@@ -12,13 +12,19 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func cacheKey(c echo.Context) string {
+type cachedResponse struct {
+	Status  int
+	Headers map[string][]string
+	Body    []byte
+}
+
+func responseCacheKey(c echo.Context) string {
 	hasher := sha256.New()
 	hasher.Write([]byte(c.Request().URL.String()))
 	return fmt.Sprintf("core:responses:%s", hex.EncodeToString(hasher.Sum(nil)))
 }
 
-func CacheMiddleware(cache *cache.Cache, ttl time.Duration) echo.MiddlewareFunc {
+func CacheMiddleware(store *cache.Cache, ttl time.Duration) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			if c.Request().Method != http.MethodGet {
@@ -26,23 +32,19 @@ func CacheMiddleware(cache *cache.Cache, ttl time.Duration) echo.MiddlewareFunc 
 			}
 
 			// Try to get from cache
-			key := cacheKey(c)
-			cachedResp, err := cache.Get(c.Request().Context(), key)
-			if err == nil && cachedResp != nil {
-				cacheData, ok := cachedResp.(map[string]any)
-				if ok {
-					status := int(cacheData["status"].(float64))
-					headers := cacheData["headers"].(map[string]any)
-					body := []byte(cacheData["body"].(string))
-
-					for k, v := range headers {
-						c.Response().Header().Set(k, v.(string))
+			key := responseCacheKey(c)
+			ctx := c.Request().Context()
+			cachedResp, err := cache.Get[cachedResponse](store, ctx, key)
+			if err == nil {
+				for k, values := range cachedResp.Headers {
+					for _, v := range values {
+						c.Response().Header().Add(k, v)
 					}
-
-					c.Response().WriteHeader(status)
-					c.Response().Write(body)
-					return nil
 				}
+
+				c.Response().WriteHeader(cachedResp.Status)
+				c.Response().Write(cachedResp.Body)
+				return nil
 			}
 
 			// Capture the response body
@@ -61,12 +63,10 @@ func CacheMiddleware(cache *cache.Cache, ttl time.Duration) echo.MiddlewareFunc 
 			status := c.Response().Status
 			if status >= 200 && status < 300 {
 				// Store response in cache
-				responseData := map[string]any{
-					"status":  status,
-					"headers": captureHeaders(c.Response().Header()),
-					"body":    resWriter.Buffer.String(),
-				}
-				cache.Set(c.Request().Context(), key, responseData, ttl)
+				cachedResp.Status = status
+				cachedResp.Headers = captureHeaders(c.Response().Header())
+				cachedResp.Body = resWriter.Buffer.Bytes()
+				cache.Set(store, ctx, key, cachedResp, ttl)
 			}
 
 			return nil
@@ -84,12 +84,11 @@ func (w *bodyCapturingWriter) Write(b []byte) (int, error) {
 	return w.ResponseWriter.Write(b)
 }
 
-func captureHeaders(headers http.Header) map[string]any {
-	result := make(map[string]any)
+func captureHeaders(headers http.Header) map[string][]string {
+	result := make(map[string][]string)
 	for k, v := range headers {
-		if len(v) > 0 {
-			result[k] = v[0]
-		}
+		result[k] = v
 	}
+
 	return result
 }
