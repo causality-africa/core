@@ -54,12 +54,6 @@ func New(database *db.DB, cacheStore *cache.Cache, version string) *API {
 
 	e.Use(middleware.Recover())
 
-	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"*"},
-		AllowMethods: []string{http.MethodGet, http.MethodOptions, http.MethodHead},
-		AllowHeaders: []string{"Content-Type"},
-	}))
-
 	rateLimiterCfg := middleware.RateLimiterConfig{
 		Skipper: middleware.DefaultSkipper,
 		Store:   middlewarex.NewRateLimiterCacheStore(rateLimit, rateLimitDuration, cacheStore),
@@ -103,6 +97,12 @@ func New(database *db.DB, cacheStore *cache.Cache, version string) *API {
 	}))
 
 	e.Use(middlewarex.CacheMiddleware(cacheStore, cacheTTL))
+
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"*"},
+		AllowMethods: []string{http.MethodGet, http.MethodOptions, http.MethodHead},
+		AllowHeaders: []string{"*"},
+	}))
 
 	return api
 }
