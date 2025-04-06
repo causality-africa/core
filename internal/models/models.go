@@ -80,7 +80,7 @@ type Indicator struct {
 
 type DataSource struct {
 	Id          int        `json:"id"`
-	Name        string     `json:"string"`
+	Name        string     `json:"name"`
 	URL         *string    `json:"url,omitempty"`
 	Description *string    `json:"description,omitempty"`
 	Date        *time.Time `json:"date,omitempty"`
