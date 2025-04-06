@@ -11,15 +11,15 @@ import (
 func (db *DB) GetIndicators(
 	ctx context.Context,
 	limit, offset int,
-) ([]models.Indicator, error) {
+) ([]models.Indicator, bool, error) {
 	query := `
 		SELECT id, name, code, category, description, unit, data_type
 		FROM indicators
 		ORDER BY name LIMIT $1 OFFSET $2
 	`
-	rows, err := db.pool.Query(ctx, query, limit, offset)
+	rows, err := db.pool.Query(ctx, query, limit+1, offset)
 	if err != nil {
-		return nil, fmt.Errorf("cannot query indicators: %w", err)
+		return nil, false, fmt.Errorf("cannot query indicators: %w", err)
 	}
 	defer rows.Close()
 
@@ -35,13 +35,19 @@ func (db *DB) GetIndicators(
 			&ind.Unit,
 			&ind.DataType,
 		); err != nil {
-			return nil, fmt.Errorf("cannot scan row: %w", err)
+			return nil, false, fmt.Errorf("cannot scan row: %w", err)
 		}
 
 		indicators = append(indicators, ind)
 	}
 
-	return indicators, nil
+	hasMore := false
+	if len(indicators) > limit {
+		hasMore = true
+		indicators = indicators[:limit]
+	}
+
+	return indicators, hasMore, nil
 }
 
 func (db *DB) GetIndicatorByCode(

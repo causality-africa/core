@@ -15,7 +15,7 @@ func (api *API) GetSources(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	offset := (p.Page - 1) * p.Size
-	sources, err := api.db.GetSources(ctx, p.Size, offset)
+	sources, more, err := api.db.GetSources(ctx, p.Size, offset)
 	if err != nil {
 		slog.Error("Error getting sources", "error", err)
 		return c.JSON(
@@ -24,7 +24,8 @@ func (api *API) GetSources(c echo.Context) error {
 		)
 	}
 
-	return c.JSON(http.StatusOK, sources)
+	resp := map[string]any{"results": sources, "more": more}
+	return c.JSON(http.StatusOK, resp)
 }
 
 func (api *API) GetSourceById(c echo.Context) error {

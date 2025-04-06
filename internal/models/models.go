@@ -98,15 +98,17 @@ type DataPoint struct {
 }
 
 type Region struct {
-	Id          int     `json:"id"`
-	Name        string  `json:"name"`
-	Code        string  `json:"code"`
-	Description *string `json:"description,omitempty"`
+	Id          int                `json:"id"`
+	Name        string             `json:"name"`
+	Code        string             `json:"code"`
+	Description *string            `json:"description,omitempty"`
+	Locations   []LocationInRegion `json:"locations"`
 }
 
 type LocationInRegion struct {
-	LocationId int        `json:"location_id"`
-	RegionId   int        `json:"region_id"`
-	JoinDate   time.Time  `json:"join_date"`
-	ExitDate   *time.Time `json:"exit_date,omitempty"`
+	LocationId   int        `json:"location_id"`
+	LocationCode string     `json:"location_code,omitempty"`
+	RegionId     int        `json:"region_id"`
+	JoinDate     time.Time  `json:"join_date"`
+	ExitDate     *time.Time `json:"exit_date,omitempty"`
 }

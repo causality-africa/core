@@ -6,9 +6,8 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-var (
-	pageSize    = 25
-	maxPageSize = 50
+const (
+	pageSize = 50
 )
 
 type pagination struct {
@@ -26,7 +25,7 @@ func getPaginationParams(c echo.Context) *pagination {
 	}
 
 	params.Size, err = strconv.Atoi(c.QueryParam("size"))
-	if err != nil || params.Size < 1 || params.Size > maxPageSize {
+	if err != nil || params.Size < 1 || params.Size > pageSize {
 		params.Size = pageSize
 	}
 

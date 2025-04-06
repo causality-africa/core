@@ -12,10 +12,6 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-var (
-	maxQueryLocations = 50
-)
-
 type Query struct {
 	Indicator string
 	StartDate time.Time
@@ -50,8 +46,8 @@ func validateQuery(c echo.Context) (*Query, error) {
 	}
 
 	q.Locations = strings.Split(locations, ",")
-	if len(q.Locations) > maxQueryLocations {
-		return nil, fmt.Errorf("maximum of %d locations allowed", maxQueryLocations)
+	if len(q.Locations) > pageSize {
+		return nil, fmt.Errorf("maximum of %d locations allowed", pageSize)
 	}
 
 	return &q, nil

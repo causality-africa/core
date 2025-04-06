@@ -14,7 +14,7 @@ func (api *API) GetIndicators(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	offset := (p.Page - 1) * p.Size
-	indicators, err := api.db.GetIndicators(ctx, p.Size, offset)
+	indicators, more, err := api.db.GetIndicators(ctx, p.Size, offset)
 	if err != nil {
 		slog.Error("Error getting indicators", "error", err)
 		return c.JSON(
@@ -23,7 +23,8 @@ func (api *API) GetIndicators(c echo.Context) error {
 		)
 	}
 
-	return c.JSON(http.StatusOK, indicators)
+	resp := map[string]any{"results": indicators, "more": more}
+	return c.JSON(http.StatusOK, resp)
 }
 
 func (api *API) GetIndicatorByCode(c echo.Context) error {

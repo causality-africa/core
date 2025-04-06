@@ -16,7 +16,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
-var (
+const (
 	rateLimit         = 100.0
 	rateLimitDuration = 5 * time.Minute
 
@@ -40,6 +40,9 @@ func New(database *db.DB, cacheStore *cache.Cache, version string) *API {
 
 	e.GET("/v1/locations", api.GetLocations)
 	e.GET("/v1/locations/:code", api.GetLocationByCode)
+
+	e.GET("/v1/regions", api.GetRegions)
+	e.GET("/v1/regions/:code", api.GetRegionByCode)
 
 	e.GET("/v1/indicators", api.GetIndicators)
 	e.GET("/v1/indicators/:code", api.GetIndicatorByCode)

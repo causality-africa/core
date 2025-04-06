@@ -11,15 +11,15 @@ import (
 func (db *DB) GetSources(
 	ctx context.Context,
 	limit, offset int,
-) ([]models.DataSource, error) {
+) ([]models.DataSource, bool, error) {
 	query := `
 		SELECT id, name, url, description, date
 		FROM data_sources
 		ORDER BY name LIMIT $1 OFFSET $2
 	`
-	rows, err := db.pool.Query(ctx, query, limit, offset)
+	rows, err := db.pool.Query(ctx, query, limit+1, offset)
 	if err != nil {
-		return nil, fmt.Errorf("cannot query data sources: %w", err)
+		return nil, false, fmt.Errorf("cannot query data sources: %w", err)
 	}
 	defer rows.Close()
 
@@ -33,13 +33,19 @@ func (db *DB) GetSources(
 			&src.Description,
 			&src.Date,
 		); err != nil {
-			return nil, fmt.Errorf("cannot scan row: %w", err)
+			return nil, false, fmt.Errorf("cannot scan row: %w", err)
 		}
 
 		sources = append(sources, src)
 	}
 
-	return sources, nil
+	hasMore := false
+	if len(sources) > limit {
+		hasMore = true
+		sources = sources[:limit]
+	}
+
+	return sources, hasMore, nil
 }
 
 func (db *DB) GetSourceById(
