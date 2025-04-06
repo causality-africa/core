@@ -99,85 +99,97 @@ func (db *DB) GetRegions(
 	ctx context.Context,
 	limit, offset int,
 ) ([]models.Region, bool, error) {
-	query := `
-		SELECT r.id, r.name, r.code, r.description,
-		       lr.location_id, l.code, lr.region_id, lr.join_date, lr.exit_date
-		FROM regions r
-		LEFT JOIN location_in_region lr ON r.id = lr.region_id
-		LEFT JOIN locations l ON lr.location_id = l.id
-		ORDER BY r.name LIMIT $1 OFFSET $2
+	// Query regions
+	regionsQuery := `
+		SELECT id, name, code, description
+		FROM regions
+		ORDER BY name
+		LIMIT $1 OFFSET $2
 	`
-	rows, err := db.pool.Query(ctx, query, limit+1, offset)
+	regionsRows, err := db.pool.Query(ctx, regionsQuery, limit+1, offset)
 	if err != nil {
 		return nil, false, fmt.Errorf("cannot query regions: %w", err)
 	}
-	defer rows.Close()
+	defer regionsRows.Close()
 
-	regionsMap := make(map[int]models.Region)
-	for rows.Next() {
-		var regionId int
-		var name, code string
-		var description *string
-		var locationId *int
-		var locationCode *string
-		var regionIdFromJoin *int
-		var joinDate *time.Time
-		var exitDate *time.Time
+	var regionIds []int
+	regionsMap := make(map[int]*models.Region)
 
-		if err := rows.Scan(
-			&regionId,
-			&name,
-			&code,
-			&description,
-			&locationId,
-			&locationCode,
-			&regionIdFromJoin,
-			&joinDate,
-			&exitDate,
+	for regionsRows.Next() {
+		var region models.Region
+		if err := regionsRows.Scan(
+			&region.Id,
+			&region.Name,
+			&region.Code,
+			&region.Description,
 		); err != nil {
-			return nil, false, fmt.Errorf("cannot scan row: %w", err)
+			return nil, false, fmt.Errorf("cannot scan region row: %w", err)
 		}
 
-		region, exists := regionsMap[regionId]
-		if !exists {
-			region = models.Region{
-				Id:          regionId,
-				Name:        name,
-				Code:        code,
-				Description: description,
-				Locations:   []models.LocationInRegion{},
-			}
-		}
-
-		if locationId != nil {
-			location := models.LocationInRegion{
-				LocationId:   *locationId,
-				LocationCode: *locationCode,
-				RegionId:     *regionIdFromJoin,
-				JoinDate:     *joinDate,
-				ExitDate:     exitDate,
-			}
-			region.Locations = append(region.Locations, location)
-		}
-
-		regionsMap[regionId] = region
+		region.Locations = []models.LocationInRegion{}
+		regionsMap[region.Id] = &region
+		regionIds = append(regionIds, region.Id)
 	}
 
+	if len(regionIds) == 0 {
+		return []models.Region{}, false, nil
+	}
+
+	hasMore := false
+	if len(regionIds) > limit {
+		hasMore = true
+
+		delete(regionsMap, regionIds[limit])
+		regionIds = regionIds[:limit]
+	}
+
+	// Query locations
+	params := make([]interface{}, len(regionIds))
+	paramPlaceholders := make([]string, len(regionIds))
+	for i, id := range regionIds {
+		params[i] = id
+		paramPlaceholders[i] = fmt.Sprintf("$%d", i+1)
+	}
+
+	locationsQuery := fmt.Sprintf(`
+		SELECT lr.location_id, l.code, lr.region_id, lr.join_date, lr.exit_date
+		FROM location_in_region lr
+		JOIN locations l ON lr.location_id = l.id
+		WHERE lr.region_id IN (%s)
+	`, strings.Join(paramPlaceholders, ", "))
+
+	locationsRows, err := db.pool.Query(ctx, locationsQuery, params...)
+	if err != nil {
+		return nil, false, fmt.Errorf("cannot query location_in_region: %w", err)
+	}
+	defer locationsRows.Close()
+
+	for locationsRows.Next() {
+		var location models.LocationInRegion
+
+		if err := locationsRows.Scan(
+			&location.LocationId,
+			&location.LocationCode,
+			&location.RegionId,
+			&location.JoinDate,
+			&location.ExitDate,
+		); err != nil {
+			return nil, false, fmt.Errorf("cannot scan location row: %w", err)
+		}
+
+		region := regionsMap[location.RegionId]
+		region.Locations = append(region.Locations, location)
+	}
+
+	// Convert to slice & sort to maintain consistent ordering
 	regions := make([]models.Region, 0, len(regionsMap))
 	for _, region := range regionsMap {
-		regions = append(regions, region)
+		regions = append(regions, *region)
 	}
 
-	// Sort by name to ensure consistent ordering
 	sort.Slice(regions, func(i, j int) bool {
 		return regions[i].Name < regions[j].Name
 	})
-
-	hasMore := false
-	if len(regions) > limit {
-		hasMore = true
-		regions = regions[:limit]
-	}
 
 	return regions, hasMore, nil
 }
