@@ -3,15 +3,16 @@ module core
 go 1.24.0
 
 require (
-	github.com/getsentry/sentry-go v0.31.1
-	github.com/getsentry/sentry-go/echo v0.31.1
-	github.com/getsentry/sentry-go/slog v0.31.1
+	github.com/getsentry/sentry-go v0.32.0
+	github.com/getsentry/sentry-go/echo v0.32.0
+	github.com/getsentry/sentry-go/slog v0.32.0
 	github.com/jackc/pgx/v5 v5.7.4
 	github.com/knadh/koanf/providers/env v1.0.0
 	github.com/knadh/koanf/v2 v2.1.2
 	github.com/labstack/echo/v4 v4.13.3
+	github.com/lib/pq v1.10.9
 	github.com/samber/slog-multi v1.4.0
-	github.com/valkey-io/valkey-go v1.0.56
+	github.com/valkey-io/valkey-go v1.0.57
 )
 
 require (

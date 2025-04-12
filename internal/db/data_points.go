@@ -8,40 +8,38 @@ import (
 	"time"
 )
 
-func (db *DB) GetDataPointsForLocations(
+func (db *DB) GetDataPointsByGeoCodes(
 	ctx context.Context,
 	indicator string,
-	locationIds []int,
+	geoCodes []string,
 	startDate, endDate time.Time,
-) (map[int][]models.DataPoint, error) {
-	if len(locationIds) == 0 {
+) (map[string][]models.DataPoint, error) {
+	if len(geoCodes) == 0 {
 		return nil, nil
 	}
 
-	locationParams := make([]string, len(locationIds))
-	args := make([]any, len(locationIds)+3) // +3 for indicator code, start and end dates
+	geoParams := make([]string, len(geoCodes))
+	args := make([]any, len(geoCodes)+3) // +3 for indicator, start/end dates
 
 	args[0] = indicator
 	args[1] = startDate
 	args[2] = endDate
 
-	results := map[int][]models.DataPoint{}
-	for i, id := range locationIds {
-		locationParams[i] = fmt.Sprintf("$%d", i+4) // +4 because indicator, dates are $1, $2, $3
-		args[i+3] = id
-
-		results[id] = []models.DataPoint{}
+	for i, code := range geoCodes {
+		geoParams[i] = fmt.Sprintf("$%d", i+4) // +4 because indicator, dates are $1, $2, $3
+		args[i+3] = code
 	}
 
 	query := fmt.Sprintf(`
-        SELECT dp.id, entity_type, entity_id, indicator_id, source_id, date, numeric_value, text_value
+        SELECT dp.id, ge.code, dp.source_id, dp.date, dp.numeric_value, dp.text_value
         FROM data_points dp
-		JOIN indicators i ON dp.indicator_id = i.id
+        JOIN geo_entities ge ON dp.geo_entity_id = ge.id
+        JOIN indicators i ON dp.indicator_id = i.id
         WHERE i.code = $1
-        AND dp.entity_type = 'location'
-        AND dp.entity_id IN (%s)
+        AND ge.code IN (%s)
         AND dp.date >= $2 AND dp.date <= $3
-    `, strings.Join(locationParams, ","))
+        ORDER BY ge.code, dp.date
+    `, strings.Join(geoParams, ","))
 
 	rows, err := db.pool.Query(ctx, query, args...)
 	if err != nil {
@@ -49,13 +47,17 @@ func (db *DB) GetDataPointsForLocations(
 	}
 	defer rows.Close()
 
+	results := make(map[string][]models.DataPoint)
+	for _, code := range geoCodes {
+		results[code] = []models.DataPoint{}
+	}
+
 	for rows.Next() {
 		var dp models.DataPoint
+		var geoCode string
 		if err := rows.Scan(
 			&dp.Id,
-			&dp.EntityType,
-			&dp.EntityID,
-			&dp.IndicatorId,
+			&geoCode,
 			&dp.SourceId,
 			&dp.Date,
 			&dp.NumericValue,
@@ -64,7 +66,7 @@ func (db *DB) GetDataPointsForLocations(
 			return nil, fmt.Errorf("cannot scan row: %w", err)
 		}
 
-		results[dp.EntityID] = append(results[dp.EntityID], dp)
+		results[geoCode] = append(results[geoCode], dp)
 	}
 
 	if err := rows.Err(); err != nil {

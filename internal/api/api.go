@@ -38,11 +38,8 @@ func New(database *db.DB, cacheStore *cache.Cache, version string) *API {
 		return c.String(http.StatusOK, fmt.Sprintf("Causality Core %s", version))
 	})
 
-	e.GET("/v1/locations", api.GetLocations)
-	e.GET("/v1/locations/:code", api.GetLocationByCode)
-
-	e.GET("/v1/regions", api.GetRegions)
-	e.GET("/v1/regions/:code", api.GetRegionByCode)
+	e.GET("/v1/geo", api.GetGeoEntities)
+	e.GET("/v1/geo/:code", api.GetGeoEntityByCode)
 
 	e.GET("/v1/indicators", api.GetIndicators)
 	e.GET("/v1/indicators/:code", api.GetIndicatorByCode)

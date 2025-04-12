@@ -1,28 +1,42 @@
 .ONESHELL:
 SHELL := /bin/bash
 
-VERSION ?= $(shell git describe --tags --always --dirty)
+
+.PHONY: up
+up:
+	@docker compose up -d
 
 
-.PHONY: run
-run:
-	@source .env
-	@go run ./cmd/core
-
+# Core
+.PHONY: restart
+restart:
+	@docker compose build core
+	@docker compose restart core
 
 .PHONY: migrate
 migrate:
-	@source .env
-	@tern migrate --migrations migrations
+	@docker exec -it core-core-1 ./tern migrate --migrations migrations
 
 
-.PHONY: build
-build:
-	@go build \
-		-ldflags="-w -s -X main.Version=$(VERSION)" \
-		-o core ./cmd/core
+# Postgres
+.PHONY: peek-db
+peek-db:
+	@docker exec -it core-postgres-1 psql -U causality
 
 
+# Valkey
 .PHONY: clear-cache
 clear-cache:
-	@docker exec -it valkey redis-cli FLUSHALL
+	@docker exec -it core-valkey-1 redis-cli FLUSHALL
+
+
+# Airflow
+.PHONY: init-airflow
+init-airflow:
+	@docker exec -it core-airflow-scheduler-1 airflow db migrate
+
+.PHONY: create-airflow-user
+create-airflow-user:
+	@docker exec -it core-airflow-scheduler-1 airflow users \
+		create --role Admin --username admin --email admin@airflow.local \
+		--firstname Causality --lastname Admin --password admin
