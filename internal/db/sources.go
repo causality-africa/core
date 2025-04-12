@@ -3,23 +3,15 @@ package db
 import (
 	"context"
 	"core/internal/models"
-	"database/sql"
-	"errors"
 	"fmt"
+
+	"github.com/lib/pq"
 )
 
-func (db *DB) GetSources(
-	ctx context.Context,
-	limit, offset int,
-) ([]models.DataSource, bool, error) {
-	query := `
-		SELECT id, name, url, description, date
-		FROM data_sources
-		ORDER BY name LIMIT $1 OFFSET $2
-	`
-	rows, err := db.pool.Query(ctx, query, limit+1, offset)
+func (db *DB) querySources(ctx context.Context, query string, args ...interface{}) ([]models.DataSource, error) {
+	rows, err := db.pool.Query(ctx, query, args...)
 	if err != nil {
-		return nil, false, fmt.Errorf("cannot query data sources: %w", err)
+		return nil, fmt.Errorf("cannot query data sources: %w", err)
 	}
 	defer rows.Close()
 
@@ -31,12 +23,30 @@ func (db *DB) GetSources(
 			&src.Name,
 			&src.URL,
 			&src.Description,
-			&src.Date,
+			&src.LastUpdated,
 		); err != nil {
-			return nil, false, fmt.Errorf("cannot scan row: %w", err)
+			return nil, fmt.Errorf("cannot scan row: %w", err)
 		}
-
 		sources = append(sources, src)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("cannot read rows: %w", err)
+	}
+
+	return sources, nil
+}
+
+func (db *DB) GetSourcesPaginated(ctx context.Context, limit, offset int) ([]models.DataSource, bool, error) {
+	query := `
+        SELECT id, name, url, description, last_updated
+        FROM data_sources
+        ORDER BY name
+        LIMIT $1 OFFSET $2
+    `
+	sources, err := db.querySources(ctx, query, limit+1, offset)
+	if err != nil {
+		return nil, false, err
 	}
 
 	hasMore := false
@@ -48,31 +58,12 @@ func (db *DB) GetSources(
 	return sources, hasMore, nil
 }
 
-func (db *DB) GetSourceById(
-	ctx context.Context, id int,
-) (*models.DataSource, error) {
+func (db *DB) GetSourcesByIds(ctx context.Context, ids []int) ([]models.DataSource, error) {
 	query := `
-		SELECT id, name, url, description, date
-		FROM data_sources
-		WHERE id = $1 LIMIT 1
-	`
-	row := db.pool.QueryRow(ctx, query, id)
-
-	var src models.DataSource
-	err := row.Scan(
-		&src.Id,
-		&src.Name,
-		&src.URL,
-		&src.Description,
-		&src.Date,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
-		}
-
-		return nil, fmt.Errorf("cannot scan row: %w", err)
-	}
-
-	return &src, nil
+        SELECT id, name, url, description, last_updated
+        FROM data_sources
+        WHERE id = ANY($1)
+        ORDER BY name
+    `
+	return db.querySources(ctx, query, pq.Array(ids))
 }

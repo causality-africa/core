@@ -1,7 +1,6 @@
 package api
 
 import (
-	"core/internal/models"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -16,7 +15,7 @@ type Query struct {
 	Indicator string
 	StartDate time.Time
 	EndDate   time.Time
-	Locations []string
+	GeoCodes  []string
 }
 
 func validateQuery(c echo.Context) (*Query, error) {
@@ -40,14 +39,14 @@ func validateQuery(c echo.Context) (*Query, error) {
 		return nil, errors.New("invalid end date format")
 	}
 
-	locations := c.QueryParam("locations")
-	if len(locations) == 0 {
-		return nil, errors.New("locations must be provided")
+	geoCodes := c.QueryParam("geo_codes")
+	if len(geoCodes) == 0 {
+		return nil, errors.New("geo_codes must be provided")
 	}
 
-	q.Locations = strings.Split(locations, ",")
-	if len(q.Locations) > pageSize {
-		return nil, fmt.Errorf("maximum of %d locations allowed", pageSize)
+	q.GeoCodes = strings.Split(geoCodes, ",")
+	if len(q.GeoCodes) > pageSize {
+		return nil, fmt.Errorf("maximum of %d geo codes allowed", pageSize)
 	}
 
 	return &q, nil
@@ -60,37 +59,16 @@ func (api *API) query(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	locations, err := api.db.GetLocationsByCodes(ctx, q.Locations)
-	if err != nil {
-		slog.Error("Error getting locations by codes", "error", err)
-		return c.JSON(
-			http.StatusInternalServerError,
-			map[string]string{"error": "error querying database"},
-		)
-	}
-
-	locationIds := make([]int, len(locations))
-	for i, location := range locations {
-		locationIds[i] = location.Id
-	}
-
-	dataPoints, err := api.db.GetDataPointsForLocations(
-		ctx, q.Indicator, locationIds, q.StartDate, q.EndDate,
+	dataPoints, err := api.db.GetDataPointsByGeoCodes(
+		ctx, q.Indicator, q.GeoCodes, q.StartDate, q.EndDate,
 	)
 	if err != nil {
-		slog.Error("Error getting data points for locations", "error", err)
+		slog.Error("Error getting data points for geo codes", "error", err)
 		return c.JSON(
 			http.StatusInternalServerError,
 			map[string]string{"error": "error querying database"},
 		)
 	}
 
-	result := make(map[string][]models.DataPoint)
-	for _, loc := range locations {
-		if len(dataPoints[loc.Id]) > 0 {
-			result[loc.Code] = dataPoints[loc.Id]
-		}
-	}
-
-	return c.JSON(http.StatusOK, result)
+	return c.JSON(http.StatusOK, dataPoints)
 }

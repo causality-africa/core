@@ -1,0 +1,74 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${CORE_DB_USER}
+      POSTGRES_PASSWORD: ${CORE_DB_PASSWORD}
+      POSTGRES_DB: ${CORE_DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  valkey:
+    image: valkey/valkey:8.0.2
+    ports:
+      - "6379:6379"
+    volumes:
+      - valkey_data:/data
+    command: ["valkey-server", "--save", "300", "1"]
+
+  core:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - CORE_API_PORT=${CORE_API_PORT}
+      - CORE_DB_HOST=${CORE_DB_HOST}
+      - CORE_DB_PORT=${CORE_DB_PORT}
+      - CORE_DB_NAME=${CORE_DB_NAME}
+      - CORE_DB_USER=${CORE_DB_USER}
+      - CORE_DB_PASSWORD=${CORE_DB_PASSWORD}
+      - CORE_CACHE_HOST=${CORE_CACHE_HOST}
+      - CORE_CACHE_PORT=${CORE_CACHE_PORT}
+      - CORE_OBSERVABILITY_SENTRYDSN=${CORE_OBSERVABILITY_SENTRYDSN}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - valkey
+
+  airflow-webserver:
+    image: ghcr.io/causality-africa/collector:v0.2.9
+    command: webserver
+    ports:
+      - "8081:8080"
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${CORE_DB_USER}:${CORE_DB_PASSWORD}@${CORE_DB_HOST}/${CORE_DB_NAME}
+      - AIRFLOW__CORE__FERNET_KEY=${CORE_AIRFLOW_FERNET_KEY}
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+    volumes:
+      - ${CORE_DAGS_FOLDER}:/opt/airflow/dags
+    depends_on:
+      - postgres
+
+  airflow-scheduler:
+    image: ghcr.io/causality-africa/collector:v0.2.9
+    command: scheduler
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${CORE_DB_USER}:${CORE_DB_PASSWORD}@${CORE_DB_HOST}/${CORE_DB_NAME}
+      - AIRFLOW__CORE__FERNET_KEY=${CORE_AIRFLOW_FERNET_KEY}
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - B2_ACCESS_KEY_ID=${B2_ACCESS_KEY_ID}
+      - B2_SECRET_ACCESS_KEY=${B2_SECRET_ACCESS_KEY}
+      - B2_BUCKET_NAME=${B2_BUCKET_NAME}
+    volumes:
+      - ${CORE_DAGS_FOLDER}:/opt/airflow/dags
+    depends_on:
+      - airflow-webserver
+
+volumes:
+  postgres_data:
+  valkey_data:
