@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	rateLimit         = 100.0
-	rateLimitDuration = 5 * time.Minute
+	rateLimit         = 300.0
+	rateLimitDuration = 15 * time.Minute
 
 	cacheTTL = 24 * time.Hour
 )
