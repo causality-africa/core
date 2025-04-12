@@ -11,7 +11,8 @@ up:
 .PHONY: restart
 restart:
 	@docker compose build core
-	@docker compose restart core
+	@docker compose up -d --force-recreate --no-deps core
+	@$(MAKE) clear-cache
 
 .PHONY: migrate
 migrate:

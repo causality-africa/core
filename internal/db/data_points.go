@@ -33,8 +33,8 @@ func (db *DB) GetDataPointsByGeoCodes(
 	query := fmt.Sprintf(`
         SELECT dp.id, ge.code, dp.source_id, dp.date, dp.numeric_value, dp.text_value
         FROM data_points dp
-        JOIN geo_entities ge ON dp.geo_entity_id = ge.id
-        JOIN indicators i ON dp.indicator_id = i.id
+        INNER JOIN geo_entities ge ON dp.geo_entity_id = ge.id
+        INNER JOIN indicators i ON dp.indicator_id = i.id
         WHERE i.code = $1
         AND ge.code IN (%s)
         AND dp.date >= $2 AND dp.date <= $3

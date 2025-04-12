@@ -17,7 +17,10 @@ func (db *DB) queryGeoEntities(ctx context.Context, query string, args ...interf
 
 	entities := []models.GeoEntity{}
 	for rows.Next() {
-		var entity models.GeoEntity
+		entity := models.GeoEntity{
+			Children: []models.GeoEntity{},
+			Metadata: []models.GeoEntityMeta{},
+		}
 		if err := rows.Scan(
 			&entity.Id,
 			&entity.Code,
@@ -40,7 +43,7 @@ func (db *DB) GetGeoEntitiesPaginated(ctx context.Context, limit, offset int) ([
 	query := `
         SELECT id, code, name, type
         FROM geo_entities
-        ORDER BY code
+        ORDER BY name
         LIMIT $1 OFFSET $2
     `
 	entities, err := db.queryGeoEntities(ctx, query, limit+1, offset)
@@ -62,7 +65,20 @@ func (db *DB) GetGeoEntitiesByCodes(ctx context.Context, codes []string) ([]mode
         SELECT id, code, name, type
         FROM geo_entities
         WHERE code = ANY($1)
-        ORDER BY code
+        ORDER BY name
     `
 	return db.queryGeoEntities(ctx, query, pq.Array(codes))
+}
+
+func (db *DB) GetGeoEntityChildren(ctx context.Context, code string) ([]models.GeoEntity, error) {
+	query := `
+		SELECT child.id, child.code, child.name, child.type
+		FROM geo_relationships rel
+		INNER JOIN geo_entities parent ON parent.id = rel.parent_id
+		INNER JOIN geo_entities child ON child.id = rel.child_id
+		WHERE parent.code=$1
+		AND (rel.until IS NULL OR rel.until > NOW())
+		ORDER BY name
+	`
+	return db.queryGeoEntities(ctx, query, code)
 }
