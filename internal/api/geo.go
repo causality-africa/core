@@ -52,5 +52,16 @@ func (api *API) GetGeoEntityByCode(c echo.Context) error {
 		)
 	}
 
-	return c.JSON(http.StatusOK, geoEntities[0])
+	entity := geoEntities[0]
+	children, err := api.db.GetGeoEntityChildren(ctx, code)
+	if err != nil {
+		slog.Error("Error getting geo entity's children", "error", err)
+		return c.JSON(
+			http.StatusInternalServerError,
+			map[string]string{"error": "error querying database"},
+		)
+	}
+
+	entity.Children = children
+	return c.JSON(http.StatusOK, entity)
 }

@@ -29,13 +29,13 @@ COPY go.mod go.sum ./
 
 RUN go mod download
 
+RUN go install github.com/jackc/tern/v2@latest
+
 COPY . .
 
 RUN go build \
     -ldflags="-w -s -X main.Version=${VERSION}" \
     -o core ./cmd/core
-
-RUN go install github.com/jackc/tern/v2@latest
 
 # core image
 FROM alpine:latest

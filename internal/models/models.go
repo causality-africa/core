@@ -34,14 +34,16 @@ func (dt *DataType) UnmarshalJSON(data []byte) error {
 }
 
 type GeoEntity struct {
-	Id   int    `json:"id"`
-	Code string `json:"code"`
-	Name string `json:"name"`
-	Type string `json:"type"`
+	Id       int             `json:"-"`
+	Code     string          `json:"code"`
+	Name     string          `json:"name"`
+	Type     string          `json:"type"`
+	Children []GeoEntity     `json:"children"`
+	Metadata []GeoEntityMeta `json:"metadata"`
 }
 
 type GeoEntityMeta struct {
-	GeoEntityId int    `json:"geo_entity_id"`
+	GeoEntityId int    `json:"-"`
 	Key         string `json:"key"`
 	Value       string `json:"value"`
 }
@@ -54,7 +56,7 @@ type GeoRelationship struct {
 }
 
 type Indicator struct {
-	Id          int      `json:"id"`
+	Id          int      `json:"-"`
 	Code        string   `json:"code"`
 	Name        string   `json:"name"`
 	Category    string   `json:"category"`
